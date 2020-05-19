@@ -11,6 +11,8 @@ import json
 
 from itertools import count
 
+import attr
+
 from twisted.internet.defer import (
     inlineCallbacks,
     returnValue,
@@ -126,14 +128,91 @@ def tahoe_create_snapshot_dir(nodeurl, content, parents, timestamp, treq):
     result = yield readBody(response)
     returnValue(result)
 
+
+# Dev steps
+# 1. Finish SnapshotMetadata in-memory representation and simple logic
+# 2. upload SnapshotMetadata to grid, download again
+# 3. insert SnapshotMetadata into local database, retrieve again
+# 4.
+
+
+@attr.s
+class SnapshotMetadata(object):
+    parent_caps = attr.ib()
+    content_cap = attr.ib()
+    timestamp = attr.ib()
+
+    def serialize(self):
+        return {
+            "parent0": ...,
+        }
+
+    @classmethod
+    def unserialize(cls, serialized):
+        return cls(
+            serialized["parent0"],
+            ...
+        )
+
+    # @classmethod
+    # def from_row(cls, row):
+    #     # ...
+
+
+    def is_parent_of(cls, snapshot):
+        # walk parent pointers
+
+# list local state
+#   foo -> 000001
+#   bar -> 000002
+#   baz -> 000003
+
+# foo = Snapshot.unserialize(read_object(000001))
+# bar = Snapshot.unserialize(read_object(000002))
+# baz = Snapshot.unserialize(read_object(000003))
+
+
+
+# list /collective/my_folder
+#   foo -> 000001
+#   bar -> 000002
+#   baz -> 000004
+
+# list /collective/your_folder
+#   foo -> 000001
+#   bar -> 000002
+#   baz -> 000005
+
+
+# local_baz.is_parent_of(my_baz) -> True
+#   fast_forward(local_checkout_directory, local_baz, my_baz)
+
+# my_baz.is_parent_of(your_baz) -> False
+# your_baz.is_parent_of(my_baz) -> True
+#     do nothing
+
+# your_baz.is_parent_of(my_baz) -> False
+#     create_local_conflict_state(local_checkout_directory, my_baz, your_baz)
+
+
+# inotify says foo changed
+# upload_content(local_checkout_directory, local_foo)
+        # tahoe put .../local_foo ..../grid_foo
+        #    -> CHK:000001
+        #    -> unchanged, don't upload new snapshot
+
+# local foo -> 000007
+# my    foo -> 000008
+# inotify says foo changed
+        # can't upload, diverged
+
+@attr.s
 class Snapshot(object):
     """
     Represents a snapshot corresponding to a file.
     """
-
-    def __init__(self, node_directory, filepath):
-        self.filepath = filepath
-        self.node_directory = node_directory.asBytesMode().path
+    filepath = attr.ib()
+    node_directory = attr.ib(converter=lambda p: p.asBytesMode())
 
     @inlineCallbacks
     def create_snapshot(self, parents, treq):
@@ -150,7 +229,7 @@ class Snapshot(object):
             Otherwise an appropriate exception is raised.
         """
 
-        nodeurl_u = unicode(get_node_url(self.node_directory), 'utf-8')
+        nodeurl_u = unicode(get_node_url(self.node_directory.path), 'utf-8')
         nodeurl = DecodedURL.from_text(nodeurl_u)
 
         content_cap = yield tahoe_put_immutable(nodeurl, self.filepath, treq)

@@ -72,16 +72,33 @@ CREATE TABLE local_files
 );
 """
 
+SCHEMA_v2 = """
+
+CREATE TABLE local_files_v2
+(
+  # only new stuff here
+)
+
+"""
+
+# new MagicFolderDBv2 that knows how to interact with SCHEMA_v2 only
+
+CLASSES = {
+    1: MagicFolderDB,
+    2: MagicFolderDBv2,
+}
+
 
 def get_magicfolderdb(dbfile, stderr=sys.stderr,
-                      create_version=(SCHEMA_v1, 1), just_create=False):
+                      create_version=(SCHEMA_v1, 1), just_create=False,
+):
     # Open or create the given backupdb file. The parent directory must
     # exist.
     try:
         (sqlite3, db) = get_db(dbfile, stderr, create_version,
                                just_create=just_create, dbname="magicfolderdb")
         if create_version[1] in (1, 2):
-            return MagicFolderDB(sqlite3, db)
+            return CLASSES[version](sqlite3, db)
         else:
             print("invalid magicfolderdb schema version specified", file=stderr)
             return None
