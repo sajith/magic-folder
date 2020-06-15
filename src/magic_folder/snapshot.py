@@ -437,7 +437,8 @@ class RemoteSnapshot(object):
 @inlineCallbacks
 def create_snapshot_from_capability(snapshot_cap, tahoe_client):
     """
-    Create a RemoteSnapshot from a snapshot capability string
+    Create a RemoteSnapshot from a snapshot capability string. The content
+    itself is not downloaded.
 
     :param tahoe_client: the Tahoe client to use
 
