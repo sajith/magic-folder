@@ -12,6 +12,7 @@ import time
 import json
 import base64
 from tempfile import mkstemp
+from collections import deque
 
 import attr
 import nacl
@@ -385,7 +386,9 @@ class RemoteSnapshot(object):
         :returns: a Snapshot instance or raises an exception
         """
         assert parent_index >= 0 and parent_index < len(self.parents_raw)
-        raise NotImplemented
+
+        parent_cap = self.parents_raw[parent_index]
+        yield create_snapshot_from_capability(parent_cap, tahoe_client)
 
     @inlineCallbacks
     def fetch_content(self, tahoe_client, writable_file):
@@ -397,7 +400,39 @@ class RemoteSnapshot(object):
         # XXX OR it just downloads all the content into memory and returns it?
         # XXX OR you give this a file-like to WRITE into
 
+    def is_equal(self, other):
+        """
+        Am I the same as the given remote spapshot?
+        """
+        return self.capability == other.capability
 
+    # XXX: find out if a the snapshot is a parent of another snapshot. Unless
+    # every snapshot metadata of every file is available locally, this is an
+    # expensive operation (expensive in terms of network latency). However,
+    # the snapshot metadata chain of a file is not very difficult to fetch
+    # since we represent content separately, so without ever fetching content
+    # in each snapshot, we can get the snapshot metadata alone.
+    # XXX: where and how do we store the local cache of snapshot metadata?
+    @inlineCallbacks
+    def is_descendant_of(self, other):
+        """
+        Am I a descendant of the given remote snapshot?
+        """
+        if self.is_equal(other):
+            return False
+
+        parent_caps = deque()
+        parent_caps.extend(self.parents_raw)
+        while parent_caps:
+            parent = parent_caps.pop()
+            if parent.is_equal(other):
+                return True
+            else:
+                # fetch parent snapshot and add its parents to parent_caps queue
+                parent_snapshot = yield create_snapshot_from_capability(parent, tahoe_client)
+                dequeue.extend(parent_snapshot.parents_raw)
+
+        return False
 
 @inlineCallbacks
 def create_snapshot_from_capability(snapshot_cap, tahoe_client):
