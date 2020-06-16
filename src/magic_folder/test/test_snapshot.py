@@ -522,8 +522,13 @@ class TahoeSnapshotTest(TestCase):
         d = write_snapshot_to_tahoe(local_snapshots[1], self.alice, self.tahoe_client)
         d.addCallback(remote_snapshots.append)
 
-        result = remote_snapshots[1].is_descendant_of(remote_snapshots[0], self.tahoe_client)
+        result1 = remote_snapshots[1].is_descendant_of(remote_snapshots[0], self.tahoe_client)
 
         # now check whether remote_snapshots[1] is a descendant of remote_snapshot[0]
-        self.assertThat(result,
+        self.assertThat(result1,
                         succeeded(Equals(True)))
+
+        # the reverse should not be true
+        result2 = remote_snapshots[0].is_descendant_of(remote_snapshots[1], self.tahoe_client)
+        self.assertThat(result2,
+                        succeeded(Equals(False)))
