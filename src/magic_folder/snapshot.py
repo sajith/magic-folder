@@ -422,7 +422,7 @@ class RemoteSnapshot(object):
             returnValue(False)
 
         parent_caps = deque()
-        parent_caps.extend(self.parents_raw)
+        parent_caps.extendleft(self.parents_raw)
         while parent_caps:
             parent_cap = parent_caps.pop()
             parent = yield create_snapshot_from_capability(parent_cap, tahoe_client)
@@ -431,7 +431,7 @@ class RemoteSnapshot(object):
             else:
                 # fetch parent snapshot and add its parents to parent_caps queue
                 parent_snapshot = yield create_snapshot_from_capability(parent, tahoe_client)
-                dequeue.extend(parent_snapshot.parents_raw)
+                dequeue.extendleft(parent_snapshot.parents_raw)
 
         returnValue(False)
 
