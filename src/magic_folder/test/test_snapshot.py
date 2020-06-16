@@ -469,3 +469,61 @@ class TahoeSnapshotTest(TestCase):
                 verify_key=Equals(author.verify_key),
             )
         )
+
+    @given(
+        content1=binary(min_size=1),
+        content2=binary(min_size=1),
+        filename=magic_folder_filenames(),
+    )
+    def test_snapshots_relationships(self, content1, content2, filename):
+        """
+        Create a remote snapshot, extend it with another snapshot and then
+        check whether the second snapshot is a descendant of the first.
+        """
+        data1 = io.BytesIO(content1)
+        local_snapshots = []
+        remote_snapshots = []
+
+        # create a local snapshot and commit it to the grid
+        d = create_snapshot(
+            name=filename,
+            author=self.alice,
+            data_producer=data1,
+            snapshot_stash_dir=self.stash_dir,
+            parents=[],
+        )
+        d.addCallback(local_snapshots.append)
+        self.assertThat(
+            d,
+            succeeded(Always()),
+        )
+
+        # commit to grid
+        d = write_snapshot_to_tahoe(local_snapshots[0], self.alice, self.tahoe_client)
+        d.addCallback(remote_snapshots.append)
+
+        # now modify the same file and create a new local snapshot
+        # with the last committed remote as parent
+        data2 = io.BytesIO(content2)
+        d = create_snapshot(
+            name=filename,
+            author=self.alice,
+            data_producer=data2,
+            snapshot_stash_dir=self.stash_dir,
+            parents=remote_snapshots,
+        )
+
+        d.addCallback(local_snapshots.append)
+        self.assertThat(
+            d,
+            succeeded(Always()),
+        )
+
+        d = write_snapshot_to_tahoe(local_snapshots[1], self.alice, self.tahoe_client)
+        d.addCallback(remote_snapshots.append)
+
+        result = remote_snapshots[1].is_descendant_of(remote_snapshots[0], self.tahoe_client)
+
+        # now check whether remote_snapshots[1] is a descendant of remote_snapshot[0]
+        self.assertThat(result,
+                        succeeded(Equals(True)))

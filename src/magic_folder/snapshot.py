@@ -414,25 +414,26 @@ class RemoteSnapshot(object):
     # in each snapshot, we can get the snapshot metadata alone.
     # XXX: where and how do we store the local cache of snapshot metadata?
     @inlineCallbacks
-    def is_descendant_of(self, other):
+    def is_descendant_of(self, other, tahoe_client):
         """
         Am I a descendant of the given remote snapshot?
         """
         if self.is_equal(other):
-            return False
+            returnValue(False)
 
         parent_caps = deque()
         parent_caps.extend(self.parents_raw)
         while parent_caps:
-            parent = parent_caps.pop()
+            parent_cap = parent_caps.pop()
+            parent = yield create_snapshot_from_capability(parent_cap, tahoe_client)
             if parent.is_equal(other):
-                return True
+                returnValue(True)
             else:
                 # fetch parent snapshot and add its parents to parent_caps queue
                 parent_snapshot = yield create_snapshot_from_capability(parent, tahoe_client)
                 dequeue.extend(parent_snapshot.parents_raw)
 
-        return False
+        returnValue(False)
 
 @inlineCallbacks
 def create_snapshot_from_capability(snapshot_cap, tahoe_client):
