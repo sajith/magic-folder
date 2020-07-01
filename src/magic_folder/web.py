@@ -29,7 +29,7 @@ def magic_folder_web_service(web_endpoint, get_magic_folder, get_auth_token):
 
     :returns: a StreamServerEndpointService instance
     """
-    root = Resource()
+    root = RootResource()
     root.putChild(b"api", MagicFolderWebApi(get_magic_folder, get_auth_token))
     return StreamServerEndpointService(
         web_endpoint,
@@ -76,6 +76,36 @@ def authorize(request, get_auth_token):
 
     return True
 
+class RootResource(Resource):
+
+    def __init__(self):
+        Resource.__init__(self)
+
+    def getChild(self, name, req):
+        return self
+
+    def render_GET(self, req):
+        return """
+        <html>
+        <head>
+          <title>Magic Folder</title>
+          <style>
+          body {
+            font-family: "Open Sans", Arial;
+            font-size: 16px;
+            margin: 2em auto;
+            max-width: 800px;
+            padding: 1em;
+            line-height: 1.4;
+          }
+          </style>
+        </head>
+        <body>
+          <h1>Hello from Magic Folder!</h1>
+          <p>This is meant for Magic Folder web API, and nothing much else.</p>
+        </body>
+        </html>
+        """
 
 class MagicFolderWebApi(Resource):
     """
