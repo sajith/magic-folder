@@ -2,10 +2,10 @@
 # See COPYING for details.
 
 """
-Implements the magic-folder list command.
+Implements ```magic-folder list``` command.
 """
+
 import os
-import json
 
 from twisted.internet import reactor
 from twisted.internet.defer import (
@@ -21,7 +21,8 @@ from hyperlink import  DecodedURL
 from treq.client import HTTPClient
 from allmydata.client import read_config
 
-def get_magic_folder_url(node_directory):
+
+def get_magic_folder_api_base_url(node_directory):
     """
     :param str node_directory: A Tahoe client directory
 
@@ -33,40 +34,50 @@ def get_magic_folder_url(node_directory):
     return magic_folder_url
 
 
-@inlineCallbacks
-def magic_folder_list(options):
+def get_magic_folder_api_token_from_cfg(config_directory):
     """
-    List all folders
+    Return token stored in magic folder config directory.
+
+    The token returned here does not authorize us.  I'm unsure why.
+    """
+    from twisted.python.filepath import FilePath
+    from .config import load_global_configuration
+
+    path = FilePath(config_directory)
+    return load_global_configuration(path).api_token
+
+
+def get_magic_folder_api_token(node_directory):
+    """
+    Return token stored in ```node_directory/private/api_auth_token```.
+    """
+    config = read_config(node_directory, u"")
+    return config.get_private_config("api_auth_token")
+
+
+@inlineCallbacks
+def magic_folder_list(node_directory):
+    """
+    List folders associated with a node.
 
     :param options: TODO
 
     :return: TODO JSON response from `/v1/magic-folder`.
     """
+    base_url = get_magic_folder_api_base_url(node_directory)
 
-    # TODO: use api_token() maybe
-    config = read_config(options.parent.node_directory, u"node_port")
-    auth_token = config.get_private_config("api_auth_token")
-
-    magic_folder_url = get_magic_folder_url(options.parent.node_directory)
-
-    # print("magic_folder_url:{} type(magic_folder_url):{}".format(magic_folder_url, type(magic_folder_url)))
-
-    url = DecodedURL.from_text(
-        unicode(magic_folder_url, 'utf-8')
+    api_url = DecodedURL.from_text(
+        unicode(base_url, 'utf-8')
     ).child(u'v1').child(u'magic-folder')
 
-    print("url:{}".format(url))
-
-    # encoded_url = url_to_bytes(url)
+    api_token = get_magic_folder_api_token(node_directory)
 
     headers = {
-        b"Authorization": u"Bearer {}".format(auth_token).encode("ascii"),
+        b"Authorization": u"Bearer {}".format(api_token).encode("ascii"),
     }
 
-    treq = HTTPClient(Agent(reactor))
-
-    response = yield treq.get(
-        url.to_uri().to_text().encode('ascii'),
+    response = yield HTTPClient(Agent(reactor)).get(
+        api_url.to_uri().to_text().encode('ascii'),
         headers=headers,
     )
 
